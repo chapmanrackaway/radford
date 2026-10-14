@@ -1,0 +1,5 @@
+node_modules/
+site/vendor/
+site/data/*.json
+site/data/*.geojson
+!site/data/.gitkeep

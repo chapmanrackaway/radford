@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Radford Rides to Vote</title>
+  <meta name="description" content="Find a Radford Transit bus from your home to your polling place in Radford, Virginia.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231d4ed8'/%3E%3Cpath d='M9 17l5 5 9-11' stroke='white' stroke-width='3.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <a class="skip" href="#planner">Skip to trip planner</a>
+  <header class="site-header">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">✓</span>
+      <div>
+        <h1 id="site-name">Radford Rides to Vote</h1>
+        <p class="tagline">Take the bus to your polling place</p>
+      </div>
+    </div>
+    <p class="election-chip" id="election-chip"></p>
+  </header>
+
+  <main class="layout">
+    <section class="panel" id="planner" aria-label="Trip planner">
+      <div id="banner" class="banner" hidden></div>
+
+      <form id="trip-form" novalidate>
+        <fieldset>
+          <legend><span class="step">1</span> Where do you live?</legend>
+          <label for="address">Home address (as it appears on your voter registration)</label>
+          <div class="row">
+            <input id="address" name="address" type="text" autocomplete="street-address" placeholder="e.g. 1020 Tyler Ave" required>
+            <button type="button" id="locate" class="icon-btn" title="Use my current location" aria-label="Use my current location">
+              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="7.5" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+            </button>
+          </div>
+          <p class="hint">Or tap the map to drop a pin on your home.</p>
+          <ul id="suggestions" class="suggestions" hidden></ul>
+          <p id="home-status" class="status" aria-live="polite"></p>
+        </fieldset>
+
+        <fieldset>
+          <legend><span class="step">2</span> Where do you vote?</legend>
+          <label for="place">Your precinct</label>
+          <select id="place" name="place"></select>
+          <p class="hint">Your precinct is printed on your voter card. Not sure?
+            <a id="lookup-link" target="_blank" rel="noopener">Look up your registration</a> on the Virginia Department of Elections site.</p>
+          <p id="place-status" class="status" aria-live="polite"></p>
+        </fieldset>
+
+        <fieldset>
+          <legend><span class="step">3</span> When do you want to leave?</legend>
+          <label for="depart">Leave home at</label>
+          <select id="depart" name="depart"></select>
+          <p class="hint" id="hours-hint"></p>
+        </fieldset>
+
+        <button type="submit" class="primary" id="plan-btn">Find my bus</button>
+      </form>
+
+      <div id="results" aria-live="polite"></div>
+
+      <details class="info">
+        <summary>Good to know</summary>
+        <div id="info-body"></div>
+      </details>
+
+      <footer class="site-footer" id="footer"></footer>
+    </section>
+
+    <section class="map-wrap" aria-label="Map">
+      <div id="map"></div>
+      <div class="legend" id="legend" hidden></div>
+    </section>
+  </main>
+
+  <script src="vendor/leaflet/leaflet.js"></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

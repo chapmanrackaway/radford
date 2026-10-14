@@ -1,0 +1,48 @@
+{
+  "siteName": "Radford Rides to Vote",
+  "city": "Radford, VA",
+  "cityName": "Radford",
+  "cityGov": "City of Radford",
+  "precinctArea": "Radford City",
+  "addressExample": "1020 Tyler Ave",
+  "timezone": "America/New_York",
+  "mapCenter": [37.1290, -80.5700],
+  "mapZoom": 14,
+  "searchBounds": { "south": 37.09, "west": -80.63, "north": 37.17, "east": -80.50 },
+
+  "election": {
+    "name": "General Election",
+    "date": "2026-11-03",
+    "pollsOpen": "06:00",
+    "pollsClose": "19:00"
+  },
+
+  "earlyVoting": {
+    "start": "2026-09-18",
+    "end": "2026-10-31",
+    "id": "early",
+    "name": "Radford City Office of Elections (early voting)",
+    "address": "619 Second Street, Radford, VA 24141",
+    "note": "Radford's early in-person voting is at the Office of Elections in Room 143 of the Radford City Courthouse building. Call ahead or check the city's elections page for daily hours."
+  },
+
+  "transit": {
+    "agency": "Radford Transit",
+    "gtfsUrls": [
+      "https://data.trilliumtransit.com/gtfs/radford-va-us/radford-va-us.zip",
+      "https://storage.googleapis.com/storage/v1/b/mdb-latest/o/us-virginia-radford-transit-gtfs-2415.zip?alt=media"
+    ],
+    "agencyUrl": "https://www.radfordtransit.com/",
+    "fareNote": "Radford Transit buses are fare-free.",
+    "paratransitNote": "All Radford Transit buses can carry wheelchairs and other mobility devices. You can also ask for a pickup or drop-off up to 3/4 mile off the route; call Radford Transit at (540) 731-3603 at least 24 hours ahead."
+  },
+
+  "links": {
+    "voterLookup": "https://vote.elections.virginia.gov/VoterInformation",
+    "cityElections": "https://www.radfordva.gov/252/Voter-Registration-Elections",
+    "cityPollingPlaces": "https://www.radfordva.gov/252/Voter-Registration-Elections",
+    "stateElections": "https://www.elections.virginia.gov/",
+    "registrarName": "Radford City Office of Elections",
+    "registrarPhone": "(540) 731-3639"
+  }
+}

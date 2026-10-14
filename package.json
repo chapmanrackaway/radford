@@ -1,0 +1,23 @@
+{
+  "name": "radford-rides-to-vote",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Interactive map that helps Radford, VA voters find a Radford Transit bus to their polling place.",
+  "type": "module",
+  "scripts": {
+    "build": "npm run vendor && npm run data",
+    "vendor": "node scripts/copy-vendor.mjs",
+    "data": "node scripts/build-data.mjs",
+    "serve": "node scripts/serve.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "leaflet": "1.9.4"
+  },
+  "devDependencies": {
+    "fflate": "0.8.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

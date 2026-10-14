@@ -1,0 +1,11 @@
+{
+  "source": "City of Radford elections office, via radfordwatch.com/officials; the New River site is also listed by Radford University's Highlanders Vote page. Confirm with the Radford City Office of Elections, (540) 731-3639.",
+  "checked": "2026-10-14",
+  "note": "Coordinates are filled in by scripts/build-data.mjs (US Census geocoder). To pin a location by hand, add \"lat\" and \"lon\" to an entry and the build will keep them.",
+  "precincts": [
+    { "id": "east", "precinct": "East", "place": "Radford Recreation Building", "address": "200 George Street, Radford, VA 24141" },
+    { "id": "west-central", "precinct": "West Central", "place": "First Baptist Church", "address": "555 Rock Road, Radford, VA 24141", "note": "State election records have called this precinct \"Central.\"" },
+    { "id": "west", "precinct": "West", "place": "Compassion Church", "address": "1820 Second Street, Radford, VA 24141" },
+    { "id": "new-river", "precinct": "New River", "place": "Grove United Methodist Church", "address": "1020 Tyler Avenue, Radford, VA 24141", "note": "This precinct covers Radford University's campus and the area north and east of Tyler Avenue." }
+  ]
+}

@@ -1,0 +1,17 @@
+stop_id,stop_name,stop_lat,stop_lon
+E0,Test East-West Stop 0,37.27,-79.99000
+E1,Test East-West Stop 1,37.27,-79.98000
+E2,Test East-West Stop 2,37.27,-79.97000
+E3,Test East-West Stop 3,37.27,-79.96000
+E4,Test East-West Stop 4,37.27,-79.95000
+E6,Test East-West Stop 6,37.27,-79.93000
+E7,Test East-West Stop 7,37.27,-79.92000
+E8,Test East-West Stop 8,37.27,-79.91000
+N0,Test North-South Stop 0,37.23500,-79.94
+N1,Test North-South Stop 1,37.24500,-79.94
+N2,Test North-South Stop 2,37.25500,-79.94
+N4,Test North-South Stop 4,37.27500,-79.94
+N5,Test North-South Stop 5,37.28500,-79.94
+N6,Test North-South Stop 6,37.29500,-79.94
+N7,Test North-South Stop 7,37.30500,-79.94
+X,Test Crossing Stop,37.27,-79.94
