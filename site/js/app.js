@@ -275,7 +275,7 @@ function stepHtml(l, o, ret) {
   if (l.type === 'ride') {
     const r = state.transit.routes[l.route];
     return `<li class="ride" style="--leg-color:${esc(r.color)}"><span class="time">${formatTime(l.depart)}</span>
-      Take ${badge(l.route)} ${esc(l.headsign ? `toward ${l.headsign}` : routeName(l.route))} from <strong>${stopName(l.fromStop)}</strong>.
+      Take ${badge(l.route)} ${esc(rideDirection(l))} from <strong>${stopName(l.fromStop)}</strong>.
       Ride ${l.stopCount} stop${l.stopCount === 1 ? '' : 's'} and get off at <strong>${stopName(l.toStop)}</strong> (${formatTime(l.arrive)}).</li>`;
   }
   const dist = formatDistance(l.meters);
@@ -310,12 +310,51 @@ function selectOption(i, container = $('#outbound-results')) {
 
 function badge(routeIdx) {
   const r = state.transit.routes[routeIdx];
-  return `<span class="badge" style="background:${esc(r.color)};color:${esc(r.textColor)}" title="${esc(routeName(routeIdx))}">${esc(r.short || r.long.slice(0, 3))}</span>`;
+  return `<span class="badge" style="background:${esc(r.color)};color:${esc(readableText(r))}" title="${esc(routeName(routeIdx))}">${esc(badgeText(r))}</span>`;
+}
+
+// Feeds often repeat the route number in names ("71 - 3rd St Station to ...")
+function stripRouteNumber(text, r) {
+  if (!text || !r.short) return text || '';
+  return text.startsWith(r.short) ? text.slice(r.short.length).replace(/^[\s:-]+/, '') : text;
+}
+
+function rideDirection(leg) {
+  const r = state.transit.routes[leg.route];
+  const dir = stripRouteNumber(leg.headsign, r) || stripRouteNumber(r.long, r);
+  if (!dir || dir === r.short) return '';
+  if (/^(north|south|east|west|in|out)bound$/i.test(dir)) return `heading ${dir.toLowerCase()}`;
+  if (/ to /i.test(dir)) return `(${dir})`;
+  return `toward ${dir}`;
+}
+
+// Use the feed's text color unless it's hard to read on the route color
+function readableText(r) {
+  const lum = (hex) => {
+    const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+    if (!m) return null;
+    const [R, G, B] = [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16) / 255)
+      .map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * R + 0.7152 * G + 0.0722 * B;
+  };
+  const bg = lum(r.color), fg = lum(r.textColor);
+  if (bg == null || fg == null) return r.textColor;
+  const contrast = (Math.max(bg, fg) + 0.05) / (Math.min(bg, fg) + 0.05);
+  if (contrast >= 3) return r.textColor;
+  return bg > 0.18 ? '#111111' : '#ffffff';
+}
+
+function badgeText(r) {
+  const label = r.short || r.long;
+  // Long names like "Smart Way Express" become initials ("SWE")
+  return label.length <= 7 ? label : label.split(/[\s-]+/).filter(Boolean).map((w) => w[0].toUpperCase()).join('');
 }
 
 function routeName(i) {
   const r = state.transit.routes[i];
-  return r.short && r.long ? `Route ${r.short}: ${r.long}` : r.long || `Route ${r.short}`;
+  if (!r.short || r.short === r.long) return r.long || `Route ${r.short}`;
+  const long = stripRouteNumber(r.long, r) || r.long;
+  return /^\d+$/.test(r.short) ? `Route ${r.short}: ${long}` : `${r.short}: ${long}`;
 }
 
 // ---------- Map ----------

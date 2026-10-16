@@ -199,6 +199,7 @@ export class Planner {
         route: p.route,
         headsign: p.headsign,
         pattern: label.pattern,
+        trip: label.trip,
         fromStop: p.stops[label.boardIdx],
         toStop: p.stops[label.alightIdx],
         depart: times[label.boardIdx],
@@ -229,17 +230,20 @@ export class Planner {
     const out = [];
     const seen = new Set();
     let t = departAt;
-    for (let i = 0; i < count * 2 && out.length < count; i++) {
+    for (let i = 0; i < count * 3 && out.length < count; i++) {
       const res = this.plan(from, to, t);
       if (!res.length) break;
       for (const r of res) {
-        const sig = r.legs.filter((l) => l.type === 'ride').map((l) => `${l.pattern}@${l.depart}`).join('|');
+        // Same buses boarded at a different stop count as the same option
+        const sig = r.legs.filter((l) => l.type === 'ride').map((l) => `${l.pattern}#${l.trip}`).join('|');
         if (!seen.has(sig)) { seen.add(sig); out.push(r); }
       }
-      const firstDepart = Math.min(...res.map((r) => r.legs.find((l) => l.type === 'ride').depart));
-      t = firstDepart - res[0].legs[0].minutes + 1;
+      // Next search: leave just late enough to miss the earliest first bus found
+      const first = res.map((r) => ({ depart: r.legs.find((l) => l.type === 'ride').depart, walk: r.legs[0].minutes }))
+        .sort((a, b) => a.depart - b.depart)[0];
+      t = Math.max(t + 1, first.depart - first.walk + 1, first.depart - 2);
     }
-    return out.sort((a, b) => a.arrive - b.arrive || a.rides - b.rides).slice(0, count);
+    return out.sort((a, b) => a.arrive - b.arrive || b.leave - a.leave || a.rides - b.rides).slice(0, count);
   }
 }
 
