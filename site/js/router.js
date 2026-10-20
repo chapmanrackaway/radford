@@ -22,6 +22,7 @@ export const DEFAULTS = {
   maxRides: 2,
   maxWait: 120,         // ignore trips leaving more than this many minutes after you're at the stop
   arriveSlack: 3,       // accept arriving up to this many minutes later to walk less at the end
+  minWalkSaved: 400,    // meters a bus trip slower than walking must save to be worth offering
 };
 
 export class Planner {
@@ -176,6 +177,16 @@ export class Planner {
         if (c.arrive > earliest + o.arriveSlack) continue;
         if (!pick || c.meters < pick.meters - 1 || (Math.abs(c.meters - pick.meters) <= 1 && c.arrive < pick.arrive)) pick = c;
       }
+      // Staying on the same bus to a stop with a shorter walk is worth a few more
+      // minutes too, even when that stop falls just outside the window above.
+      if (pick) {
+        const ride = labels[k][pick.stop];
+        const limit = pick.arrive + o.arriveSlack;
+        for (const c of cands) {
+          const l = labels[k][c.stop];
+          if (l.pattern === ride.pattern && l.trip === ride.trip && c.arrive <= limit && c.meters < pick.meters - 1) pick = c;
+        }
+      }
       if (pick && pick.arrive < bestSoFar - 0.5) {
         bestSoFar = pick.arrive;
         results.push(this.reconstruct(labels, k, pick, departAt, from, to));
@@ -269,6 +280,9 @@ export class Planner {
     const seen = new Set();
     // A bus trip that makes you walk as far as walking straight there doesn't help
     const directWalk = distance(from.lat, from.lon, to.lat, to.lon) * this.o.detour;
+    // A bus that's slower than walking is only worth it if it saves real walking
+    const walkArrive = departAt + this.walkMinutes(directWalk / this.o.detour);
+    const worthIt = (r) => r.walkMeters < directWalk && (r.arrive < walkArrive || directWalk - r.walkMeters >= this.o.minWalkSaved);
     let t = departAt;
     for (let i = 0; i < count * 3 && out.length < count; i++) {
       const res = this.plan(from, to, t);
@@ -276,7 +290,7 @@ export class Planner {
       for (const r of res) {
         // Same buses boarded at a different stop count as the same option
         const sig = r.legs.filter((l) => l.type === 'ride').map((l) => `${l.pattern}#${l.trip}`).join('|');
-        if (!seen.has(sig) && r.walkMeters < directWalk) { seen.add(sig); out.push(r); }
+        if (!seen.has(sig) && worthIt(r)) { seen.add(sig); out.push(r); }
       }
       // Next search: leave just late enough to miss the earliest first bus found
       const first = res.map((r) => ({ depart: r.legs.find((l) => l.type === 'ride').depart, walk: r.legs[0].minutes }))

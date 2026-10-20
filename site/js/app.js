@@ -221,7 +221,7 @@ function renderResults(place, options, { walkMeters, noCoords } = {}) {
   if (walkMeters < 2000 && (walkFaster || !options.length)) {
     html += options.length
       ? `<p class="note">Your polling place is about ${formatDistance(walkMeters)} away. Walking there (about ${walkMin} minutes) is faster, but these buses mean less walking.</p>`
-      : `<p class="note">Your polling place is about ${formatDistance(walkMeters)} away, roughly a ${walkMin}-minute walk. No bus trip would save you any walking.</p>`;
+      : `<p class="note">Your polling place is about ${formatDistance(walkMeters)} away, roughly a ${walkMin}-minute walk. No bus trip would get you there sooner or save you much walking.</p>`;
   }
   if (options.length) {
     html += options.map((o, i) => optionHtml(o, i)).join('');
@@ -326,10 +326,12 @@ function stripRouteNumber(text, r) {
 
 function rideDirection(leg) {
   const r = state.transit.routes[leg.route];
-  const dir = stripRouteNumber(leg.headsign, r) || stripRouteNumber(r.long, r);
+  const headsign = stripRouteNumber(leg.headsign, r);
+  const dir = headsign || stripRouteNumber(r.long, r);
   if (!dir || dir === r.short) return '';
   if (/^(north|south|east|west|in|out)bound$/i.test(dir)) return `heading ${dir.toLowerCase()}`;
-  if (/ to /i.test(dir)) return `(${dir})`;
+  // Without a headsign, the route's long name is just its name ("New River Rapid"), not a destination
+  if (!headsign || / to /i.test(dir)) return `(${dir})`;
   return `toward ${dir}`;
 }
 
@@ -368,7 +370,7 @@ function setupMap() {
   const { site, transit } = state;
   const map = L.map('map', { zoomControl: true }).setView(site.mapCenter, site.mapZoom);
   state.map = map;
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   }).addTo(map);

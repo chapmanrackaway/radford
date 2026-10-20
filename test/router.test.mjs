@@ -106,3 +106,51 @@ test('drops bus options that need as much walking as walking straight there', ()
   const to = { lat: 37.2745, lon: -79.951 };
   assert.deepEqual(planner.options(from, to, 8 * 60, 3), []);
 });
+
+// Regression (Radford, Route 60): the bus reached a stop 0.5 mi from the polling
+// place, then one 0.16 mi away a few minutes later. A different bus set the
+// "earliest arrival" window, the closer stop fell just outside it, and the rider
+// was told to get off early and walk the long way.
+test('stays on the same bus to a closer stop when it costs only a few minutes', () => {
+  const north = (m) => 37 + m / 111195;
+  const east = (m) => -80 + m / 88805;
+  const net = {
+    routes: [{ id: 'a', short: 'A', long: 'A' }, { id: 'b', short: 'B', long: 'B' }],
+    stops: [
+      ['Home A', north(5000), -80],
+      ['Far stop K', north(700), -80],    // 700 m from the destination
+      ['Near stop M', north(100), -80],   // 100 m from the destination
+      ['Home B', north(5000), -80],
+      ['Other route F', 37, east(1100)],  // 1100 m from the destination, but reached first
+    ],
+    patterns: [
+      { route: 0, headsign: '', stops: [0, 1, 2], trips: [[600, 619, 630]] },
+      { route: 1, headsign: '', stops: [3, 4], trips: [[600, 610]] },
+    ],
+    shapes: {},
+  };
+  const p = new Planner(net);
+  const [best] = p.plan({ lat: north(5000), lon: -80 }, { lat: 37, lon: -80 }, 598);
+  const ride = best.legs.find((l) => l.type === 'ride');
+  assert.equal(net.stops[ride.toStop][0], 'Near stop M');
+  assert.ok(best.legs.at(-1).meters < 150);
+});
+
+// Radford: a voter 0.2 mi from the polling place was offered a 10-minute bus ride
+// of one stop that saved ~50 m of walking over a 5-minute walk.
+test('drops bus trips that are slower than walking and barely save any walking', () => {
+  const north = (m) => 37 + m / 111195;
+  const net = {
+    routes: [{ id: 'a', short: 'A', long: 'A' }],
+    stops: [['Next to home', north(330), -80], ['Next to polling place', north(20), -80]],
+    patterns: [{ route: 0, headsign: '', stops: [0, 1], trips: [[605, 612]] }],
+    shapes: {},
+  };
+  const p = new Planner(net);
+  const from = { lat: north(350), lon: -80 }, to = { lat: 37, lon: -80 };
+  assert.equal(p.plan(from, to, 600).length, 1);      // the bus trip exists...
+  assert.equal(p.options(from, to, 600, 3).length, 0); // ...but walking (~6 min) is the better choice
+  // A bus that beats walking is still offered
+  net.patterns[0].trips = [[601, 602]];
+  assert.equal(new Planner(net).options(from, to, 600, 3).length, 1);
+});
