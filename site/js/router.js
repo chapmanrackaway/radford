@@ -21,6 +21,7 @@ export const DEFAULTS = {
   minTransfer: 2,       // minutes to make a connection
   maxRides: 2,
   maxWait: 120,         // ignore trips leaving more than this many minutes after you're at the stop
+  arriveSlack: 3,       // accept arriving up to this many minutes later to walk less at the end
 };
 
 export class Planner {
@@ -95,13 +96,11 @@ export class Planner {
     // best[k][s]: earliest arrival at stop s using k rides; labels[k][s] explains how
     const best = Array.from({ length: K + 1 }, () => new Float64Array(nStops).fill(Infinity));
     const labels = Array.from({ length: K + 1 }, () => new Array(nStops));
-    const bestAny = new Float64Array(nStops).fill(Infinity);
 
     let marked = new Set();
     for (const { stop, meters } of this.stopsNear(from.lat, from.lon)) {
       const t = departAt + this.walkMinutes(meters);
       best[0][stop] = t;
-      bestAny[stop] = t;
       labels[0][stop] = { type: 'access', meters };
       marked.add(stop);
     }
@@ -122,9 +121,11 @@ export class Planner {
           const s = p.stops[i];
           if (trip >= 0) {
             const arr = p.trips[trip][i];
-            if (arr < best[k][s] && arr < bestAny[s]) {
+            // Compare within this round only. Pruning against walking arrivals from
+            // home would hide the stop beside the destination whenever it is also
+            // within walking distance of home, and the rider would be sent past it.
+            if (arr < best[k][s]) {
               best[k][s] = arr;
-              bestAny[s] = arr;
               labels[k][s] = { type: 'ride', pattern: pi, trip, boardIdx, alightIdx: i };
               newly.add(s);
             }
@@ -149,9 +150,8 @@ export class Planner {
         for (const [j, d] of xfers[s]) {
           if (riddenSet.has(j)) continue;
           const t = best[k][s] + this.walkMinutes(d);
-          if (t < best[k][j] && t < bestAny[j]) {
+          if (t < best[k][j]) {
             best[k][j] = t;
-            bestAny[j] = t;
             labels[k][j] = { type: 'walk', from: s, meters: d };
             newly.add(j);
           }
@@ -165,10 +165,16 @@ export class Planner {
     const results = [];
     let bestSoFar = Infinity;
     for (let k = 1; k <= K; k++) {
+      // Get off the bus and walk; among choices arriving within a few minutes of
+      // the earliest, take the one with the shortest walk.
+      const cands = egress
+        .filter(({ stop }) => labels[k][stop]?.type === 'ride')
+        .map(({ stop, meters }) => ({ stop, meters, arrive: best[k][stop] + this.walkMinutes(meters) }));
+      const earliest = Math.min(...cands.map((c) => c.arrive));
       let pick = null;
-      for (const { stop, meters } of egress) {
-        const arrive = best[k][stop] + this.walkMinutes(meters);
-        if (arrive < (pick?.arrive ?? Infinity)) pick = { stop, meters, arrive };
+      for (const c of cands) {
+        if (c.arrive > earliest + o.arriveSlack) continue;
+        if (!pick || c.meters < pick.meters - 1 || (Math.abs(c.meters - pick.meters) <= 1 && c.arrive < pick.arrive)) pick = c;
       }
       if (pick && pick.arrive < bestSoFar - 0.5) {
         bestSoFar = pick.arrive;
@@ -200,6 +206,8 @@ export class Planner {
         headsign: p.headsign,
         pattern: label.pattern,
         trip: label.trip,
+        boardIdx: label.boardIdx,
+        alightIdx: label.alightIdx,
         fromStop: p.stops[label.boardIdx],
         toStop: p.stops[label.alightIdx],
         depart: times[label.boardIdx],
@@ -210,6 +218,7 @@ export class Planner {
       s = p.stops[label.boardIdx];
     }
     legs.reverse();
+    this.closestBoarding(legs, departAt, from);
     // Express the opening walk as "leave home at" so the rider doesn't wait at the stop longer than needed
     const firstRide = legs.find((l) => l.type === 'ride');
     const leave = firstRide.depart - legs[0].minutes;
@@ -225,10 +234,41 @@ export class Planner {
     };
   }
 
+  /**
+   * The search boards a bus at the first stop along its route that the rider can
+   * reach in time, which can mean walking to a far stop upstream. Move the boarding
+   * point to the closest stop the same bus passes before the rider gets off.
+   */
+  closestBoarding(legs, departAt, from) {
+    const access = legs[0];
+    const ride = legs[1];
+    if (access?.type !== 'walk' || ride?.type !== 'ride') return;
+    const p = this.t.patterns[ride.pattern];
+    const times = p.trips[ride.trip];
+    let best = { idx: ride.boardIdx, meters: access.meters };
+    for (let i = ride.boardIdx + 1; i < ride.alightIdx; i++) {
+      const [, lat, lon] = this.t.stops[p.stops[i]];
+      const meters = distance(from.lat, from.lon, lat, lon);
+      if (meters < best.meters - 1 && meters <= this.o.maxWalk && departAt + this.walkMinutes(meters) <= times[i]) best = { idx: i, meters };
+    }
+    if (best.idx === ride.boardIdx) return;
+    const stop = p.stops[best.idx];
+    Object.assign(access, { toStop: stop, meters: best.meters, minutes: this.walkMinutes(best.meters) });
+    Object.assign(ride, {
+      boardIdx: best.idx,
+      fromStop: stop,
+      depart: times[best.idx],
+      stopCount: ride.alightIdx - best.idx,
+      path: p.stops.slice(best.idx, ride.alightIdx + 1),
+    });
+  }
+
   /** Several options, each leaving after the previous one's first bus. */
   options(from, to, departAt, count = 3) {
     const out = [];
     const seen = new Set();
+    // A bus trip that makes you walk as far as walking straight there doesn't help
+    const directWalk = distance(from.lat, from.lon, to.lat, to.lon) * this.o.detour;
     let t = departAt;
     for (let i = 0; i < count * 3 && out.length < count; i++) {
       const res = this.plan(from, to, t);
@@ -236,7 +276,7 @@ export class Planner {
       for (const r of res) {
         // Same buses boarded at a different stop count as the same option
         const sig = r.legs.filter((l) => l.type === 'ride').map((l) => `${l.pattern}#${l.trip}`).join('|');
-        if (!seen.has(sig)) { seen.add(sig); out.push(r); }
+        if (!seen.has(sig) && r.walkMeters < directWalk) { seen.add(sig); out.push(r); }
       }
       // Next search: leave just late enough to miss the earliest first bus found
       const first = res.map((r) => ({ depart: r.legs.find((l) => l.type === 'ride').depart, walk: r.legs[0].minutes }))

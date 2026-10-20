@@ -188,7 +188,7 @@ function planReturn() {
   state.inbound = options;
   const el = $('#return-results');
   el.innerHTML = `<h3>Getting home (leaving around ${formatTime(voteDone)})</h3>` +
-    (options.length ? options.map((o, i) => optionHtml(o, i, true)).join('') : `<p class="muted">We didn't find a bus home within two hours of ${formatTime(voteDone)}.</p>`);
+    (options.length ? options.map((o, i) => optionHtml(o, i, true)).join('') : `<p class="muted">We didn't find a bus home within two hours of ${formatTime(voteDone)} that saves you any walking.</p>`);
   bindOptions(el);
   if (options.length) selectOption(0, el);
 }
@@ -216,8 +216,12 @@ function renderResults(place, options, { walkMeters, noCoords } = {}) {
   }
 
   html += `<div class="card" id="outbound-results"><h2>Bus options</h2>`;
-  if (walkMeters < 1300) {
-    html += `<p class="note">Your polling place is about ${formatDistance(walkMeters)} away, roughly a ${Math.round(walkMeters / planner.o.walkSpeed)}-minute walk. Walking may be faster than the bus.</p>`;
+  const walkMin = Math.round(walkMeters / planner.o.walkSpeed);
+  const walkFaster = options.length && options[0].arrive > state.trip.departAt + walkMin;
+  if (walkMeters < 2000 && (walkFaster || !options.length)) {
+    html += options.length
+      ? `<p class="note">Your polling place is about ${formatDistance(walkMeters)} away. Walking there (about ${walkMin} minutes) is faster, but these buses mean less walking.</p>`
+      : `<p class="note">Your polling place is about ${formatDistance(walkMeters)} away, roughly a ${walkMin}-minute walk. No bus trip would save you any walking.</p>`;
   }
   if (options.length) {
     html += options.map((o, i) => optionHtml(o, i)).join('');
@@ -226,7 +230,8 @@ function renderResults(place, options, { walkMeters, noCoords } = {}) {
   } else {
     const nearHome = planner.stopsNear(home.lat, home.lon).length;
     const nearPlace = planner.stopsNear(place.lat, place.lon).length;
-    const why = !nearHome ? 'There are no bus stops within about ¾ mile of your home.'
+    const why = walkMeters < 2000 && nearHome && nearPlace ? 'Walking is your best option for this trip.'
+      : !nearHome ? 'There are no bus stops within about ¾ mile of your home.'
       : !nearPlace ? 'There are no bus stops within about ¾ mile of this polling place.'
       : `We couldn't find a trip with two buses or fewer leaving around ${formatTime(state.trip.departAt)}. Try a different time.`;
     html += `<p>${esc(why)}</p>`;
@@ -450,7 +455,7 @@ function drawItinerary(o) {
   if (state.layers.trip) state.layers.trip.remove();
   if (!o) {
     const pts = [[state.trip.home.lat, state.trip.home.lon], [state.trip.place.lat, state.trip.place.lon]];
-    map.fitBounds(pts, { padding: [40, 40] });
+    map.fitBounds(pts, { padding: [40, 40], maxZoom: 16 });
     return;
   }
   const g = L.layerGroup().addTo(map);
@@ -477,7 +482,7 @@ function drawItinerary(o) {
     }
   }
   state.layers.trip = g;
-  map.fitBounds(bounds, { padding: [40, 40] });
+  map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
 }
 
 // ---------- Geocoding ----------

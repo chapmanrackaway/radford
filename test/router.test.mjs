@@ -71,3 +71,38 @@ test('formatting helpers', () => {
   assert.equal(formatDistance(1609.34), '1.0 mi');
   assert.equal(formatDistance(50), '160 ft');
 });
+
+// Regression: a beta tester was sent to a far upstream stop and carried past the
+// stop beside the polling place, then told to walk back.
+test('boards at the closest stop the bus passes, not the first one in walking range', () => {
+  const from = { lat: 37.27, lon: -79.96 };  // at East-West stop 3 (stop 2 is also walkable)
+  const to = { lat: 37.27, lon: -79.93 };    // at East-West stop 6
+  // Leaving at 8:20, the 8:30 bus can be caught at stop 2 (8:36) or stop 3 (8:39)
+  const [best] = planner.plan(from, to, 8 * 60 + 20);
+  const ride = best.legs.find((l) => l.type === 'ride');
+  assert.equal(ride.fromStop, stopId('Test East-West Stop 3'));
+  assert.equal(ride.toStop, stopId('Test East-West Stop 6'));
+  assert.ok(best.legs[0].meters < 50);
+  assert.deepEqual(ride.path[0], ride.fromStop);
+});
+
+test('gets off beside the destination even when that stop is walkable from home', () => {
+  const from = { lat: 37.27, lon: -79.96 };  // at East-West stop 3
+  const to = { lat: 37.2702, lon: -79.95 };  // beside East-West stop 4, ~0.55 mi away
+  const opts = planner.options(from, to, 8 * 60, 3);
+  assert.ok(opts.length > 0);
+  for (const o of opts) {
+    const ride = o.legs.find((l) => l.type === 'ride');
+    assert.equal(ride.fromStop, stopId('Test East-West Stop 3'));
+    assert.equal(ride.toStop, stopId('Test East-West Stop 4'));
+    assert.ok(o.legs.at(-1).meters < 50);
+  }
+});
+
+test('drops bus options that need as much walking as walking straight there', () => {
+  // Polling place halfway between two stops on different routes: any bus trip
+  // walks at least as far as just walking.
+  const from = { lat: 37.2745, lon: -79.955 };
+  const to = { lat: 37.2745, lon: -79.951 };
+  assert.deepEqual(planner.options(from, to, 8 * 60, 3), []);
+});
